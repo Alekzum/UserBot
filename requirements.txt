@@ -1,0 +1,9 @@
+python-dotenv~=1.0.1
+httpx~=0.28.1
+aiofiles~=24.1.0
+psutil~=6.1.1
+Kurigram~=2.2.12
+aiosqlite~=0.21.0
+aioconsole~=0.8.1
+aiogram~=3.20.0.post0
+colorama~=0.4.6
