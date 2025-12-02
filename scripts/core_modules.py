@@ -3,15 +3,15 @@ from utils.config import Config as Cfg
 from utils.good_things import answer
 
 from pyrogram.types import Message
-from pyrogram import Client
-from aiogram import Dispatcher, Bot, Router
+from utils import Client
+from aiogram import Dispatcher, Router
 from aiogram.dispatcher.event.handler import HandlerObject as AioHandler
 
 from utils.config.my_types import MyCallable
 from pyrogram.handlers.handler import Handler
 from pyrogram import filters
 from dataclasses import dataclass
-from typing import Any, Iterable, Literal, overload
+from typing import Any, Literal, overload
 from types import ModuleType
 
 from importlib import import_module, reload
@@ -24,8 +24,6 @@ import sys
 import datetime
 import copy
 import json
-
-import asyncio
 
 
 Config = Cfg(
@@ -69,7 +67,11 @@ async def main(client: Client, message: Message):
         #     # if not name.startswith("scripts_"): name = "scripts_" + name
         #     result = await reload_handler_by_name(client, name)
 
-        case ["modules" | "module", "check", name, "bool"] | ["mcheck", name, "bool"]:
+        case ["modules" | "module", "check", name, "bool"] | [
+            "mcheck",
+            name,
+            "bool",
+        ]:
             result = await handler_is_loaded(client, name, return_type="bool")
 
         case ["modules" | "module", "check", name] | ["mcheck", name]:
@@ -85,7 +87,10 @@ async def main(client: Client, message: Message):
             for_bot = bool(_bot and _bot[0] == "bot")
             bot_type = "bot" if for_bot else "userbot"
 
-            if for_bot and (bot := getattr(client, "_other_bot", None)) is not None:
+            if (
+                for_bot
+                and (bot := getattr(client, "_other_bot", None)) is not None
+            ):
                 client_to_check = client
                 bot_type_str = "дополнительного бота"
 
@@ -135,9 +140,9 @@ bot_handlers_directory = pathlib.Path("handlers", "bot")
 
 
 def log(text: str) -> None:
-    import datetime
-
-    logger.info(f"{str(datetime.datetime.now())[:-3]} - runtime_plaftorm - {text}")
+    logger.info(
+        f"{str(datetime.datetime.now())[:-3]} - runtime_plaftorm - {text}"
+    )
 
 
 @dataclass
@@ -194,7 +199,11 @@ def repr_filter(
     if mode == "json":
         args = (
             json.dumps(
-                my_obj, sort_keys=True, indent=4, ensure_ascii=False, default=vars
+                my_obj,
+                sort_keys=True,
+                indent=4,
+                ensure_ascii=False,
+                default=vars,
             )
             .removeprefix("{")
             .removesuffix("}")
@@ -210,7 +219,9 @@ def get_active_handlers(client: Client, bot_type: UB_OR_B | Any):
     if bot_type not in ["userbot", "bot"]:
         raise ValueError(f"Unknown type {bot_type}!")
 
-    elif bot_type == "bot" and (other_bot := getattr(client, "_other_bot", None)):
+    elif bot_type == "bot" and (
+        other_bot := getattr(client, "_other_bot", None)
+    ):
         return get_aio_client_handlers(other_bot[0])
 
     elif bot_type == "bot":
@@ -309,8 +320,12 @@ async def load_handler_by_name(
     else:
         raise TypeError(f"Didn't understood args ({name, bot_type}) :/")
 
-    default_handlers, with_errors = get_default_handlers(bot_type, save_errors=True)
-    default_handlers_names = [h.name.rsplit(".", 1)[0] for h in default_handlers]
+    default_handlers, with_errors = get_default_handlers(
+        bot_type, save_errors=True
+    )
+    default_handlers_names = [
+        h.name.rsplit(".", 1)[0] for h in default_handlers
+    ]
     errors_names = [i[0].replace(".", "/") + ".py" for i in with_errors]
     print([i.name.rsplit(".", 1)[0] for i in default_handlers], name)
 
@@ -319,7 +334,11 @@ async def load_handler_by_name(
     if name in errors_names:
         index = errors_names.index(name)
         errored = with_errors[index]
-        return False if is_bool else f"Модуль {name} не загружен, потому что произошла ошибка {errored[1]!r}"
+        return (
+            False
+            if is_bool
+            else f"Модуль {name} не загружен, потому что произошла ошибка {errored[1]!r}"
+        )
     if name not in default_handlers_names:
         # logger.info(f"! module {name} didn't found")
         return False if is_bool else f"Не найден модуль {name} ({_name}) :/"
@@ -535,7 +554,10 @@ def get_default_handlers(
             for callback in callbacks_with_handlers:
                 for handler_tuple in callback.handlers:
                     handler = MyHandler(
-                        f"{callback.__module__}.{callback.__name__}", False, handler_tuple[0], handler_tuple[1]
+                        f"{callback.__module__}.{callback.__name__}",
+                        False,
+                        handler_tuple[0],
+                        handler_tuple[1],
                     )
                     default_handlers.append(handler)
         else:
@@ -545,14 +567,21 @@ def get_default_handlers(
             for observer in rt.observers.values():
                 for handler in observer.handlers:
                     callback = handler.callback
-                    my_handler = MyHandler(f"{callback.__module__}.{callback.__name__}", True, handler, 0)
+                    my_handler = MyHandler(
+                        f"{callback.__module__}.{callback.__name__}",
+                        True,
+                        handler,
+                        0,
+                    )
                     default_handlers.append(my_handler)
     if save_errors:
         return default_handlers, with_errors
     return default_handlers
 
 
-async def get_handlers_status_string(client: Client, type: UB_OR_B = "userbot") -> str:
+async def get_handlers_status_string(
+    client: Client, type: UB_OR_B = "userbot"
+) -> str:
     default_handlers = get_default_handlers(type=type)
     if type == "userbot":
         # assert isinstance(client, Client)
@@ -562,9 +591,10 @@ async def get_handlers_status_string(client: Client, type: UB_OR_B = "userbot") 
         dp: Dispatcher = getattr(client, "_other_bot")[0]
         handlers = get_aio_client_handlers(dp)
 
-
     # default_names: dict[str, MyHandler] = {hand.name: hand for hand in default_handlers}
-    handlers_names: dict[str, MyHandler] = {hand.name: hand for hand in handlers}
+    handlers_names: dict[str, MyHandler] = {
+        hand.name: hand for hand in handlers
+    }
 
     results: list[str] = []
 
@@ -599,11 +629,15 @@ def get_module_type(name: str) -> tuple[str, UB_OR_B] | tuple[None, None]:
     for prefix, (formatter, result) in fields.items():
         if (
             name.startswith(prefix)
-            and pathlib.Path((_name := formatter.format(name)).replace(".", "/")+".py").exists()
+            and pathlib.Path(
+                (_name := formatter.format(name)).replace(".", "/") + ".py"
+            ).exists()
         ):
             return _name, result
     else:
-        if pathlib.Path((_name := f"scripts.{name}").replace(".", "/")+".py").exists():
+        if pathlib.Path(
+            (_name := f"scripts.{name}").replace(".", "/") + ".py"
+        ).exists():
             print(_name)
             return _name, "userbot"
         return None, None

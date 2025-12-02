@@ -21,3 +21,4 @@ my_sessions/
 temp*
 
 !scripts/core_*
+!scripts/example/

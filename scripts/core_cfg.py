@@ -3,9 +3,8 @@ from utils.config.modules_things import load_raw
 from utils.config.my_things import set_variable, get_variable
 from utils.good_things import answer
 from pyrogram.types import Message
-from pyrogram import Client
+from utils import Client
 from typing import Union, Any, Sequence
-import asyncio
 import ast
 
 
@@ -55,7 +54,10 @@ def stringify(something: dict | list | str | int) -> str:
             if debug:
                 Config.logger.info("LOG - dict")
             result = "\n".join(
-                [f"{name}: {something[name].__class__.__name__}" for name in something]
+                [
+                    f"{name}: {something[name].__class__.__name__}"
+                    for name in something
+                ]
             )
 
         case list():
@@ -109,12 +111,9 @@ def set(path: str, value: Any) -> str:
         return "Неизвестный путь."
     edited = set_variable(raw_path, thing2)
     edited_str = "Изменено" if edited else "Не изменено"
-    result = (
-        f"{edited_str} значение по пути '{raw_path!s}' с '{thing1!s}' на '{thing2!s}'"
-    )
+    result = f"{edited_str} значение по пути '{raw_path!s}' с '{thing1!s}' на '{thing2!s}'"
     Config.logger.info(result)
     return result
-
 
 
 def parse(something) -> str:
@@ -146,4 +145,6 @@ async def main(client: Client, message: Message):
             result = "бу!"
 
     if isinstance(result, str):
-        await answer(message, "<code>" + message.text.html + "</code>\n" + result)
+        await answer(
+            message, "<code>" + message.text.html + "</code>\n" + result
+        )
