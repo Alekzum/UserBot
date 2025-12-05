@@ -1,7 +1,6 @@
 
 __pycache__/
 .*/
-scripts/*
 logs/
 archive/
 todo/
@@ -19,6 +18,3 @@ my_sessions/
 *.session-journal
 *.log
 temp*
-
-!scripts/core_*
-!scripts/example/

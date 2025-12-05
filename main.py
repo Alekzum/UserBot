@@ -1,6 +1,7 @@
 from utils.config.my_wraps import wrap_loggers
 from utils.config.modules_things import (
-    set_handlers_get_diffs,
+    set_handlers,
+    get_diffs,
     execute_on_startup,
     execute_on_shutdown,
     get_bot_routers,
@@ -13,15 +14,13 @@ import logging
 import dotenv
 import os
 
-from contextlib import contextmanager, suppress
-
 from requests.exceptions import ConnectionError, Timeout
 from httpx import NetworkError, TimeoutException
 
+from contextlib import contextmanager, suppress
 import aiogram
 from aiogram.client.default import DefaultBotProperties
 
-# from utils.my_patches import Dispatcher, Client
 from utils.my_patches import Client
 from utils.bot_things.my_middleware import LogMiddleware
 
@@ -53,8 +52,6 @@ async def stop_app(app: Client) -> bool:
     await execute_on_shutdown(app)
 
     logger.info("Stopping bots...")
-    # async for i in app.get_dialogs():
-    # pass
 
     try:
         logger.debug("Clearing last name...")
@@ -64,8 +61,6 @@ async def stop_app(app: Client) -> bool:
         ex_str = "".join(traceback.format_exception(ex))
         logger.warning(f"Captured exception {ex!s}: \n{ex_str}")
         pass
-    # except KeyboardInterrupt:
-    # pass
 
     if bot_turn_on and app._other_bot:
         dp, bot = app._other_bot
@@ -81,12 +76,10 @@ async def stop_app(app: Client) -> bool:
             await bot.session.close()
         except TIMEOUT_EXCEPTIONS:
             logger.warning("Timeout at additional bot.")
-        # await dp.stop_polling()
         logger.info("Stopped additional bot")
         delattr(app, "_other_bot")
 
     logger.debug("Stopping main app...")
-    # await app.storage.save()
     try:
         await app.stop()
     except TIMEOUT_EXCEPTIONS:
@@ -102,7 +95,8 @@ async def start_app(app: Client) -> bool:
         logger.warning("Client is already started!")
         return True
 
-    diffs = await set_handlers_get_diffs(app)
+    await set_handlers(app)
+    diffs = get_diffs()
 
     logger.debug(
         f"Start bot{'s' if bot_turn_on else ''} (aka connect to Telegram)"
@@ -114,13 +108,7 @@ async def start_app(app: Client) -> bool:
     if bot_turn_on and app._other_bot:
         pair = app._other_bot
         dp, bot = pair
-        # aiogram_taskh mute_pyrogram():
-        # await dp.emit_startup(bot=bot)
-        # tasks.add(asyncio.create_task(dp.start_polling(bot)))
-        # await asyncio.sleep(5)
         tasks.add(asyncio.create_task(dp.start_polling(bot)))
-        # await dp._polling(bot)
-        # tasks.add(asyncio.create_task(dp._polling(bot)))
         bot_username = (await bot.get_me()).username
         additional_info.append(f"(bot's username is @{bot_username})")
 
@@ -132,7 +120,6 @@ async def start_app(app: Client) -> bool:
 
 
 async def main():
-    # app = PyroClient(
     app = Client(
         "Kurigram_UserBot",
         api_id=os.environ["ID"],
@@ -149,35 +136,20 @@ async def main():
         system_lang_code="ru",
         sleep_threshold=120,
     )
-    # app.storage = AIOSQLiteStorage(client=app)
     setattr(app, "_other_bot", None)
 
     if bot_turn_on:
-        # bot = PyroClient(
         bot = aiogram.Bot(
-            # "Kurigram_Bot",
             token=os.environ["BOT_TOKEN"],
             default=DefaultBotProperties(parse_mode="html"),
-            # plugins=dict(root="handlers.bot"),
-            # workdir="my_sessions",
-            # api_id=os.environ["ID"],
-            # api_hash=os.environ["HASH"],
-            # lang_pack="jabka",
-            # lang_code="ru",
-            # system_lang_code="ru",
-            # sleep_threshold=120,
-            # system_version="SDK 31",
-            # client_platform=pyrogram.enums.ClientPlatform.ANDROID,
-            # device_model="Samsung SM-G998B",
         )
         dp = aiogram.Dispatcher(disable_fsm=True)
         dp.update.middleware(LogMiddleware())
-        dp.include_routers(*get_bot_routers())
-        # bot.storage = AIOSQLiteStorage(client=bot)
+        routers = get_bot_routers()
+        if routers:
+            dp.include_routers(*routers)
         setattr(app, "_other_bot", (dp, bot))
-        # bot = patch_app(bot)
 
-    # app = patch_app(app)
     await start_app(app)
     await pyrogram.idle()  # pyright: ignore[reportPrivateImportUsage]
     await stop_app(app)
