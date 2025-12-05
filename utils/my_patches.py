@@ -8,6 +8,7 @@ from typing_extensions import OrderedDict, override
 import pyrogram.client
 import pyrogram.dispatcher
 import aiogram
+import structlog
 
 
 class PatchedClient(pyrogram.client.Client):  # type: ignore
@@ -30,6 +31,7 @@ class PatchedClient(pyrogram.client.Client):  # type: ignore
 
     @override
     def add_handler(self: "PatchedClient", handler: "Handler", group: int = 0):  # type: ignore
+
         async def inner():
             if isinstance(handler, StartHandler):
                 self.start_handler = handler.callback
@@ -64,7 +66,8 @@ class PatchedDispatcher(pyrogram.dispatcher.Dispatcher):
         super().__init__(app)
 
     @override
-    def add_handler(self, handler, group: int):  # type: ignore
+    def add_handler(self, handler: "Handler", group: int):  # type: ignore
+        logger.debug("Adding handler", func=handler.callback, func_module=handler.callback.__module__)
         async def fn():
             for lock in self.locks_list:
                 await lock.acquire()
@@ -82,7 +85,8 @@ class PatchedDispatcher(pyrogram.dispatcher.Dispatcher):
         return self.client.loop.create_task(fn())
 
     @override
-    def remove_handler(self, handler, group: int):  # type: ignore
+    def remove_handler(self, handler: "Handler", group: int):  # type: ignore
+        logger.debug("Removing handler", func=handler.callback, func_module=handler.callback.__module__)
         async def fn():
             for lock in self.locks_list:
                 await lock.acquire()
@@ -103,3 +107,9 @@ class PatchedDispatcher(pyrogram.dispatcher.Dispatcher):
 
 Client = PatchedClient
 Dispatcher = PatchedDispatcher
+
+
+logger = structlog.getLogger(__name__)
+
+
+__all__ = ["Client", "Dispatcher", "PatchedClient", "PatchedDispatcher"]

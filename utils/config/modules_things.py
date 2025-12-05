@@ -104,7 +104,7 @@ warned_modules: set[ModuleType] = set()
 logger = structlog.getLogger(__name__)
 
 
-def get_modules_list() -> list[str]:
+def _get_modules_list() -> list[str]:
     return [
         ".".join(h.parts).removesuffix(h.suffix)
         for directory in scripts_path
@@ -143,13 +143,11 @@ The difference between the old config and the new one:
         return handlers, None
 
 
-async def set_handlers_get_diffs(
-    client: Client,
-) -> dict[Literal["added", "removed"], set] | None:
-    handlers, diffs = get_diffs()
+async def set_handlers(client: Client):
+    handlers = get_active_handlers()
+    logger.debug("got active handlers", active_handlers=handlers)
     for handler in handlers:
         await client.add_handler(handler)
-    return diffs
 
 
 def get_handler_by_name(name: str) -> Handler:
@@ -178,26 +176,26 @@ def import_modules(names: list[str]) -> list[ModuleType]:
             logger.warning(
                 "Module didn't have a config. Is it not needed? Add prefix _ to filename :shrug:",
                 module_name=name,
-                exc=ex,
+                exception=ex, exc_info=True
             )
 
         result.append(module)
 
     for skipped_module, exc in skipped_modules:
         logger.warning(
-            "Module raised an exceptions", module_name=skipped_module, exc=exc
+            "Module raised an exceptions", module_name=skipped_module, exception=exc, exc_info=exc
         )
     return result
 
 
-def get_modules() -> list[ModuleType]:
-    modules_names = get_modules_list()
+def _get_modules() -> list[ModuleType]:
+    modules_names = _get_modules_list()
     modules = import_modules(modules_names)
     return modules
 
 
 def get_active_handlers() -> list[Handler]:
-    modules = get_modules()
+    modules = _get_modules()
     handlers = [
         module.Config.handler
         for module in modules
@@ -213,7 +211,7 @@ def get_active_handlers() -> list[Handler]:
 
 def get_modules_with_func(func_name: str):
     have_func = function_in_module(func_name)
-    return [module for module in get_modules() if have_func(module)]
+    return [module for module in _get_modules() if have_func(module)]
 
 
 async def execute_on_startup(client: Client, diffs):
@@ -282,6 +280,7 @@ def get_bot_routers() -> list[Router]:
             set(
                 f.as_posix().replace("/", ".").removesuffix(".py")
                 for f in list(pathlib.Path("handlers", "bot").glob("[!_]*.py"))
+                + list(pathlib.Path("handlers", "bot").glob("[!_]*.py"))
                 + list(pathlib.Path("scripts").glob("[!_]*.py"))
             )
         )

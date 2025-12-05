@@ -2,7 +2,7 @@ from typing import Literal, Any, Coroutine, TypeVar, overload, Iterable
 from pyrogram.enums import MessageEntityType, ParseMode, ChatAction
 from pyrogram.raw.types.bot_inline_result import BotInlineResult
 from pyrogram.types import Message, User, MessageEntity
-from pyrogram import Client, enums, errors
+from pyrogram import enums, errors
 from pyrogram.dispatcher import Dispatcher
 from utils.text_to_file import convert as text_to_file
 from utils.uploading_file import upload_file
@@ -11,15 +11,12 @@ from .my_patches import Client
 from html import escape
 import datetime
 import asyncio
-import structlog, logging
+import structlog
 import time
 
 import subprocess
-import asyncio
-import time
 import json
 import sys
-import os
 
 
 logger = structlog.getLogger(__name__)
@@ -149,7 +146,7 @@ async def answer(
     raw_text = (await client.parser.parse(text, ParseMode.HTML))["message"]
 
     if not (image or len(raw_text) > _len_for_image):
-        if message.from_user and message.from_user.is_self:
+        if message.from_user and message.from_user.is_self and edit:
             return await message.edit_text(result, parse_mode=chosen_parse_mode)
         return await message.reply_text(
             result, quote=reply, parse_mode=chosen_parse_mode
@@ -182,7 +179,12 @@ async def answer(
         )
         # else:
         #     msg = await message.reply_text(caption, quote=reply, parse_mode=chosen_parse_mode)
-    except errors.SlowmodeWait:
+    except errors.SlowmodeWait as ex:
+        logger.warning(
+            "Sleeping some moment for sending document", wait_amount=ex.value
+        )
+        await asyncio.sleep(float(ex.value))  # type: ignore
+
         maybe_msg = await client.send_document(
             message.from_user.id,
             file_path,
@@ -533,7 +535,7 @@ async def require_inline_my_bot(
 ) -> Message | None:
     pair: tuple[Dispatcher, Client] | None = getattr(client, "_other_bot", None)
     if pair is None:
-        logger.warning(f'Didn\'t found "_other_bot" at client')
+        logger.warning('Didn\'t found "_other_bot" at client')
         return None
 
     dp, other_bot = pair
